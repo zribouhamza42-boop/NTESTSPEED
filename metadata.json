@@ -1,0 +1,6 @@
+{
+  "name": "Smart Internet Doctor",
+  "description": "A next-generation futuristic SaaS dashboard for an AI-powered internet diagnostics platform with advanced cyberpunk aesthetics, glassmorphism panels, synthesized sound FX indicators, and real-time telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
