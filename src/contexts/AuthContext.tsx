@@ -68,8 +68,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncToken = () => {
       setToken(localStorage.getItem("access_token"));
     };
+    const handleLocalRefresh = (e: any) => {
+      if (e && e.detail && e.detail.token) {
+        setToken(e.detail.token);
+      }
+    };
     window.addEventListener("storage", syncToken);
-    return () => window.removeEventListener("storage", syncToken);
+    window.addEventListener("local_token_refreshed", handleLocalRefresh);
+    return () => {
+      window.removeEventListener("storage", syncToken);
+      window.removeEventListener("local_token_refreshed", handleLocalRefresh);
+    };
   }, []);
 
   useEffect(() => {

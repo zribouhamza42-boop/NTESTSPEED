@@ -79,6 +79,9 @@ api.interceptors.response.use(
 
       localStorage.setItem("access_token", newAccessToken);
 
+      // Symmetrically update in-page React contexts by triggering a local event state sync
+      window.dispatchEvent(new CustomEvent("local_token_refreshed", { detail: { token: newAccessToken } }));
+
       originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
       
       processQueue(null, newAccessToken);

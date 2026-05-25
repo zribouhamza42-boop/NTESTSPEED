@@ -175,6 +175,12 @@ async function startServer() {
   // Enable JSON request body parsing
   app.use(express.json());
 
+  // Global Request Logging Middleware
+  app.use((req, res, next) => {
+    console.log(`[BACKEND REQUEST] Method: ${req.method} | URL: ${req.url}`);
+    next();
+  });
+
   // API Check Endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
@@ -190,6 +196,19 @@ async function startServer() {
       settings: db.settings ? { siteName_ar: db.settings.siteName_ar, siteName_en: db.settings.siteName_en } : undefined
     };
     res.json(safeData);
+  });
+
+  // Dedicated Authentication Endpoint Method Check & Logger
+  app.all("/api/auth/login", (req, res, next) => {
+    console.log(`[LOGIN ENDPOINT HIT] Method: ${req.method} | URL: ${req.url}`);
+    if (req.method !== "POST") {
+      console.warn(`[METHOD MISMATCH] Received ${req.method} on login route instead of POST`);
+      return res.status(405).json({
+        error: "Method Not Allowed",
+        message: `Authentication endpoint only supports POST requests. Received: ${req.method}`
+      });
+    }
+    next();
   });
 
   // Dedicated Authentication Endpoint
@@ -379,7 +398,11 @@ async function startServer() {
       req.user = decoded;
       next();
     } catch (err: any) {
-      console.error("JWT validation error on backend route:", err.message || err);
+      if (err.name === "TokenExpiredError" || err.message === "jwt expired") {
+        console.log(`[AUTH] JWT access token expired gracefully (Expected behavior, rotation flow will follow): ${err.message}`);
+      } else {
+        console.error("JWT validation error on backend route:", err.message || err);
+      }
       // Explicitly return 401 Unauthorized for client-side interceptors to catch and try token refresh
       return res.status(401).json({ error: "Session expired or invalid token. Please refresh credentials." });
     }

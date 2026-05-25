@@ -36,7 +36,11 @@ const authMiddleware = (req: any, res: any, next: any) => {
     req.user = decoded;
     next();
   } catch (err: any) {
-    console.error("JWT validation error in session module middleware:", err.message || err);
+    if (err.name === "TokenExpiredError" || err.message === "jwt expired") {
+      console.log(`[AUTH-SESSIONS] JWT token expired in session module (Expected behavior, rotation flow will follow): ${err.message}`);
+    } else {
+      console.error("JWT validation error in session module middleware:", err.message || err);
+    }
     return res.status(401).json({ error: "Session expired or invalid token." });
   }
 };
