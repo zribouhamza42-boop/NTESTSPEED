@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -53,14 +52,13 @@ function verifyRefreshToken(token: string) {
   return jwt.verify(token, JWT_REFRESH_SECRET);
 }
 
-async function startServer() {
-  const app = express();
-  app.set("trust proxy", 1);
-  const PORT = 3000;
+const app = express();
+app.set("trust proxy", 1);
+const PORT = 3000;
 
-  // Database initialization and helpers
-  const dbPath = path.join(process.cwd(), "site-db.json");
-  const defaultDbPath = path.join(process.cwd(), "src", "defaultDb.json");
+// Database initialization and helpers
+const dbPath = path.join(process.cwd(), "site-db.json");
+const defaultDbPath = path.join(process.cwd(), "src", "defaultDb.json");
 
   // Load or initialize site-db.json
   if (!fs.existsSync(dbPath)) {
@@ -999,23 +997,32 @@ async function startServer() {
   });
 
   // Serve static assets in production, otherwise mount Vite
-  if (process.env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+  async function startStandaloneServer() {
+    if (process.env.NODE_ENV === "production") {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    } else {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Smart Internet Doctor backend listening on client-ingress port ${PORT}`);
     });
-  } else {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Smart Internet Doctor backend listening on client-ingress port ${PORT}`);
-  });
-}
+  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+    startStandaloneServer().catch((error) => {
+      console.error("[STANDALONE CRITICAL ERROR] Failed to start standalone backend listener:", error);
+    });
+  }
 
-startServer();
+export { app };
+export default app;
