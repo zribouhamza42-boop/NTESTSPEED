@@ -47,8 +47,8 @@ export default function Navbar({
       {/* Laser line gradient accent under navbar */}
       <div className="absolute bottom-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#00F0FF]/40 to-transparent"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-2 border border-[#00F0FF]/10 bg-[#070b19]/60 backdrop-blur-md rounded-2xl shadow-[0_5px_25px_rgba(0,0,0,0.5)] border-b-2 border-b-[#00F0FF]/20" id="nav-inner-container">
+        <div className="flex items-center justify-between h-16">
           
           {/* Brand/Logo Redesign */}
           <div 
@@ -71,7 +71,7 @@ export default function Navbar({
           </div>
 
           {/* Nav Links (Desktop) */}
-          <div className="hidden lg:flex items-center space-x-1 rtl:space-x-reverse" id="nav-desktop-links">
+          <div className="hidden lg:flex items-center space-x-1 rtl:space-x-reverse border border-[#00F0FF]/25 border-b-2 border-b-[#00F0FF]/70 bg-[#030712]/65 px-3.5 py-1.5 rounded-2xl shadow-[0_4px_20px_rgba(0,240,255,0.08)] backdrop-blur-lg" id="nav-desktop-links">
             {navItems.map((item) => {
               const isActive = currentPage === item.id || (item.id === "speedtest" && currentPage === "analysis");
               return (
@@ -154,7 +154,7 @@ export default function Navbar({
             <button
               onClick={() => handleNav("speedtest")}
               id="nav-cta-desktop"
-              className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-gradient-to-r from-[#00F0FF] to-[#7B61FF] text-black shadow-lg shadow-[#00F0FF]/15 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-gradient-to-r from-[#00F0FF] to-[#7B61FF] text-black shadow-lg shadow-[#00F0FF]/15 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer border border-[#00F0FF]/60"
             >
               {t.ctaStartTest}
             </button>

@@ -245,7 +245,7 @@ export default function App() {
 
         {/* Global Alert Notification */}
         {currentPage === 'home' && (
-          <div className="bg-gradient-to-r from-blue-950 via-indigo-950 to-blue-950 border-b border-blue-900/30 text-center py-2.5 px-4 text-xs font-mono" id="global-announcement-bar">
+          <div className="bg-gradient-to-r from-blue-950 via-[#0B1020] to-blue-950 border-b-2 border-b-[#00F0FF]/35 text-center py-2.5 px-4 text-xs font-mono shadow-[0_4px_12px_rgba(0,120,255,0.08)]" id="global-announcement-bar">
             <span>
               {language === 'ar' 
                 ? "💡 جرب ترقية DNS لعنوان 1.1.1.1 لتخطي تذبذب مزودي الخدمة واستعراض عروض الـ RDP الحصرية" 
