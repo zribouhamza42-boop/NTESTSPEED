@@ -202,12 +202,25 @@ async function startServer() {
     const db = getDb();
     const user = (db.users || []).find((u: any) => u.email.toLowerCase() === email.toLowerCase());
 
+    console.log("LOGIN EMAIL:", email);
+
+    console.log(
+      "USERS:",
+      (db.users || []).map((u:any) => ({
+        email: u.email,
+        role: u.role
+      }))
+    );
+
+    console.log("FOUND USER:", !!user);
+
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password combination" });
     }
 
     // Compare bcrypt hashing
     const isPasswordValid = bcrypt.compareSync(password, user.password);
+    console.log("PASSWORD VALID:", isPasswordValid);
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid email or password combination" });
     }
@@ -224,6 +237,7 @@ async function startServer() {
 
     // Use production session module to track and persist metadata + tokens
     const sService = new SessionService();
+    console.log("CREATING SESSION...");
     sService.createSession(
       user.id,
       refreshToken,

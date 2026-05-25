@@ -50,7 +50,11 @@ export default function Login({ language, onLoginSuccess, setCurrentPage }: Logi
       const data = text ? JSON.parse(text) : {};
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(
+          data.error ||
+          data.message ||
+          `Authentication failed (${response.status})`
+        );
       }
 
       // Success callback
