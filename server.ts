@@ -55,6 +55,7 @@ function verifyRefreshToken(token: string) {
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", 1);
   const PORT = 3000;
 
   // Database initialization and helpers
@@ -172,13 +173,74 @@ async function startServer() {
     }
   };
 
+  // Production HTTPS Enforcer & Redirect Middleware
+  app.use((req, res, next) => {
+    if (
+      process.env.NODE_ENV === "production" &&
+      req.headers["x-forwarded-proto"] &&
+      req.headers["x-forwarded-proto"] !== "https"
+    ) {
+      console.log(`[SECURE REDIRECT] Redirecting insecure http request to https for: ${req.headers.host}${req.url}`);
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+
+  // Comprehensive Custom CORS & Options Preflight Interceptor
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      "https://ntestspeed.online",
+      "https://www.ntestspeed.online",
+      "https://ais-dev-mavjbi2vkogztf57ly7wry-59114231947.europe-west2.run.app",
+      "https://ais-pre-mavjbi2vkogztf57ly7wry-59114231947.europe-west2.run.app"
+    ];
+
+    if (origin) {
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.includes("google") ||
+        origin.includes("ai.studio") ||
+        origin.includes("ntestspeed.online") ||
+        origin.endsWith(".run.app")
+      ) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+    } else {
+      // For general clients, allow wildcard or default
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Forwarded-For, User-Agent"
+    );
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+
+    // Explicit production security headers
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+
+    // Intercept CORS preflight OPTIONS request
+    if (req.method === "OPTIONS") {
+      console.log(`[CORS PREFLIGHT OPTIONS SUCCESS] Method: OPTIONS | Origin: ${origin} | URL: ${req.url}`);
+      return res.status(204).end();
+    }
+
+    next();
+  });
+
   // Enable JSON request body parsing
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
   // Global Request Logging Middleware
   app.use((req, res, next) => {
-    console.log(`[BACKEND REQUEST] Method: ${req.method} | URL: ${req.url}`);
+    console.log(`[BACKEND REQUEST] Method: ${req.method} | URL: ${req.url} | Origin: ${req.headers.origin || "none"}`);
     next();
   });
 
@@ -222,28 +284,21 @@ async function startServer() {
     const db = getDb();
     const user = (db.users || []).find((u: any) => u.email.toLowerCase() === email.toLowerCase());
 
-    console.log("LOGIN EMAIL:", email);
-
-    console.log(
-      "USERS:",
-      (db.users || []).map((u:any) => ({
-        email: u.email,
-        role: u.role
-      }))
-    );
-
-    console.log("FOUND USER:", !!user);
+    console.log(`[AUTH EVENT TRY] User Email Attempt: "${email}" | Origin: ${req.headers.origin}`);
 
     if (!user) {
+      console.warn(`[AUTH EVENT FAILURE] Authentication failed: User "${email}" not found in database.`);
       return res.status(401).json({ error: "Invalid email or password combination" });
     }
 
     // Compare bcrypt hashing
     const isPasswordValid = bcrypt.compareSync(password, user.password);
-    console.log("PASSWORD VALID:", isPasswordValid);
     if (!isPasswordValid) {
+      console.warn(`[AUTH EVENT FAILURE] Authentication failed: Incorrect password specified for user "${email}".`);
       return res.status(401).json({ error: "Invalid email or password combination" });
     }
+
+    console.log(`[AUTH EVENT SUCCESS] Authentication verified successfully for user: "${email}" | Role: ${user.role}`);
 
     // Design Session
     const sessionId = "s-" + Date.now() + "-" + Math.random().toString(36).substring(2, 9);
@@ -392,6 +447,13 @@ async function startServer() {
         const db = getDb();
         const activeSession = (db.sessions || []).find((s: any) => s.id === decoded.sessionId);
         if (!activeSession || activeSession.revoked || new Date(activeSession.expiresAt).getTime() < Date.now()) {
+          console.warn(
+            `[AUTH WARNING] Session check failed on secure route for user: "${decoded.email}". ` +
+            `SessionId: "${decoded.sessionId}". ` +
+            `Exists: ${!!activeSession}, ` +
+            `Revoked: ${activeSession ? activeSession.revoked : "N/A"}, ` +
+            `Expired: ${activeSession ? (new Date(activeSession.expiresAt).getTime() < Date.now()) : "N/A"}`
+          );
           return res.status(401).json({ error: "Your session active status has been invalidated or revoked." });
         }
       }

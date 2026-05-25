@@ -2,6 +2,10 @@
 @import "tailwindcss";
 
 @theme {
+  --color-cyber-bg: #0B1020;
+  --color-cyber-cyan: #00F0FF;
+  --color-cyber-purple: #7B61FF;
+  --color-cyber-emerald: #00FFA3;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
@@ -9,7 +13,8 @@
 @layer base {
   body {
     font-family: var(--font-sans);
-    background-color: #020617; /* deep slate-950 */
+    background-color: #0B1020; /* deep dark navy background */
+    color: #FFFFFF;
     overflow-x: hidden;
   }
   
@@ -19,37 +24,149 @@
   }
 }
 
-/* Custom futuristic animation classes */
-@keyframes scanning-laser {
-  0% { transform: translateY(-100%); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
-}
-
-@keyframes holographic-pulse {
+/* Custom premium futuristic glows and animations */
+@keyframes neon-pulse-cyan {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.02);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.15), inset 0 0 8px rgba(0, 240, 255, 0.05);
+    border-color: rgba(0, 240, 255, 0.3);
   }
   50% {
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.22), inset 0 0 20px rgba(168, 85, 247, 0.08);
+    box-shadow: 0 0 30px rgba(0, 240, 255, 0.45), inset 0 0 15px rgba(0, 240, 255, 0.15);
+    border-color: rgba(0, 240, 255, 0.7);
   }
 }
 
-@keyframes text-glow-pulse {
+@keyframes neon-pulse-purple {
   0%, 100% {
-    text-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+    box-shadow: 0 0 15px rgba(123, 97, 255, 0.15), inset 0 0 8px rgba(123, 97, 255, 0.05);
+    border-color: rgba(123, 97, 255, 0.25);
   }
   50% {
-    text-shadow: 0 0 18px rgba(168, 85, 247, 0.45);
+    box-shadow: 0 0 30px rgba(123, 97, 255, 0.4), inset 0 0 15px rgba(123, 97, 255, 0.15);
+    border-color: rgba(123, 97, 255, 0.6);
   }
 }
 
-.cyber-panel-glow {
-  animation: holographic-pulse 8s ease-in-out infinite;
+@keyframes neon-pulse-emerald {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 255, 163, 0.12), inset 0 0 8px rgba(0, 255, 163, 0.03);
+    border-color: rgba(0, 255, 163, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 163, 0.38), inset 0 0 15px rgba(0, 255, 163, 0.12);
+    border-color: rgba(0, 255, 163, 0.5);
+  }
 }
 
-.cyber-text-glow {
-  animation: text-glow-pulse 4s ease-in-out infinite;
+@keyframes scanning-radar {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes grid-drift {
+  0% { background-position: 0 0; }
+  100% { background-position: 48px 48px; }
+}
+
+@keyframes text-shine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes aurora-float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.55;
+  }
+  33% {
+    transform: translate(25px, -30px) scale(1.1);
+    opacity: 0.7;
+  }
+  66% {
+    transform: translate(-20px, 35px) scale(0.95);
+    opacity: 0.6;
+  }
+}
+
+@keyframes horizontal-laser {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(11, 16, 32, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-cyan {
+  background: rgba(3, 7, 18, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.glow-cyan {
+  animation: neon-pulse-cyan 6s ease-in-out infinite;
+}
+
+.glow-purple {
+  animation: neon-pulse-purple 7s ease-in-out infinite;
+}
+
+.glow-emerald {
+  animation: neon-pulse-emerald 8s ease-in-out infinite;
+}
+
+.radar-sweep {
+  animation: scanning-radar 10s linear infinite;
+}
+
+.grid-animation {
+  animation: grid-drift 24s linear infinite;
+}
+
+.aurora-motion {
+  animation: aurora-float 15s ease-in-out infinite;
+}
+
+.text-gradient-shimmer {
+  background-size: 200% auto;
+  animation: text-shine 6s linear infinite;
+}
+
+.laser-sweep-line {
+  animation: horizontal-laser 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Animations for dynamic user-to-node laser pulse connection */
+@keyframes shoot-laser {
+  0% {
+    stroke-dashoffset: 400;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes shoot-spark {
+  0% {
+    stroke-dashoffset: 400;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.laser-pulse-animation {
+  animation: shoot-laser 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.laser-spark-animation {
+  animation: shoot-spark 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 /* Custom scrollbars for extreme tech feeling */
@@ -58,12 +175,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: #0B1020;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #111a36;
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6;
+  background: #00F0FF;
 }

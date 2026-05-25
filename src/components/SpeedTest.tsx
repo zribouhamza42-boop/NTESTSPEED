@@ -1,8 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PageId, Language, SpeedResults } from "../types";
 import { TRANSLATIONS } from "../data";
-import { Gauge, Play, CheckCircle2, AlertTriangle, ChevronRight, Activity, RotateCcw } from "lucide-react";
+import { 
+  Gauge, 
+  Play, 
+  Activity, 
+  RotateCcw, 
+  AlertTriangle, 
+  ChevronRight, 
+  ArrowDownCircle, 
+  ArrowUpCircle, 
+  Timer, 
+  Zap, 
+  Radio, 
+  Sparkles,
+  Award
+} from "lucide-react";
 import SpeedChart, { ChartDataPoint } from "./SpeedChart";
+import { FutureSoundEngine } from "./FutureAmbiance";
+import { motion, AnimatePresence } from "motion/react";
 
 interface SpeedTestProps {
   language: Language;
@@ -32,23 +48,27 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
   // Animation Progress (radial bar helper)
   const [gaugeProgress, setGaugeProgress] = useState(0);
 
-  // Timer reference
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Active Dial Value (maps to active measurement for visual needles/arcs)
+  const [liveDialValue, setLiveDialValue] = useState(0);
 
   const startTest = () => {
     if (isRunning) return;
     setIsRunning(true);
     setStage('ping');
     setGaugeProgress(10);
+    setLiveDialValue(5);
 
-    // Initial values
+    // Initial values reset
     setPing(0);
     setJitter(0);
     setDownload(0);
     setUpload(0);
-    setChartData([]); // Reset chart data for a fresh run
+    setChartData([]);
 
-    // Step 1: Run Ping & Jitter evaluation for 3 seconds
+    // Sound alert
+    FutureSoundEngine.playScan();
+
+    // Step 1: Run Ping & Jitter calculation (2.5 seconds)
     setTimeout(() => {
       let finalPing = 0;
       let finalJitter = 0;
@@ -77,8 +97,12 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
       setJitter(finalJitter);
       setStage('download');
       setGaugeProgress(40);
+      setLiveDialValue(0);
 
-      // Step 2: Run Download simulation with rolling numbers for 4 seconds
+      // Sound update
+      FutureSoundEngine.playTick();
+
+      // Step 2: Run Download simulation for 3.5 seconds
       let downloadCounter = 0.1;
       let iterations = 0;
       const targetDownload = profile === 'stable' ? (Math.random() * 140 + 280) // 280-420 Mbps
@@ -88,14 +112,15 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
 
       const downloadInterval = setInterval(() => {
         iterations++;
-        // Simulate real gauge noise
         const step = targetDownload / 20;
         downloadCounter = Math.min(targetDownload, downloadCounter + step + (Math.random() * step - step/2));
         const currentDl = parseFloat(downloadCounter.toFixed(1));
+        
         setDownload(currentDl);
+        setLiveDialValue(currentDl);
         setGaugeProgress(40 + Math.floor((iterations / 20) * 30));
 
-        // Record real-time download data point
+        // Record real-time chart data point
         const elapsed = parseFloat((iterations * 0.15).toFixed(2));
         setChartData(prev => [...prev, { elapsed, value: currentDl, type: 'download' }]);
 
@@ -104,16 +129,14 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
           const finalDl = parseFloat(targetDownload.toFixed(1));
           setDownload(finalDl);
 
-          // Force definitive end point for download
-          setChartData(prev => [
-            ...prev.filter(p => p.elapsed < 3.0),
-            { elapsed: 3.0, value: finalDl, type: 'download' }
-          ]);
-
           setStage('upload');
           setGaugeProgress(70);
+          setLiveDialValue(0);
 
-          // Step 3: Run Upload simulation for 4 seconds
+          // Sound update
+          FutureSoundEngine.playTick();
+
+          // Step 3: Run Upload simulation for 3.5 seconds
           let uploadCounter = 0.1;
           let uploadIterations = 0;
           const targetUpload = profile === 'stable' ? (Math.random() * 60 + 90)   // 90-150 Mbps
@@ -126,10 +149,12 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
             const step = targetUpload / 20;
             uploadCounter = Math.min(targetUpload, uploadCounter + step + (Math.random() * step - step/2));
             const currentUl = parseFloat(uploadCounter.toFixed(1));
+            
             setUpload(currentUl);
+            setLiveDialValue(currentUl);
             setGaugeProgress(70 + Math.floor((uploadIterations / 20) * 30));
 
-            // Record real-time upload data point
+            // Record real-time chart data point
             const elapsed = parseFloat((3.0 + uploadIterations * 0.15).toFixed(2));
             setChartData(prev => [...prev, { elapsed, value: currentUl, type: 'upload' }]);
 
@@ -138,17 +163,15 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
               const finalUl = parseFloat(targetUpload.toFixed(1));
               setUpload(finalUl);
 
-              // Force definitive end point for upload
-              setChartData(prev => [
-                ...prev.filter(p => p.elapsed < 6.0),
-                { elapsed: 6.0, value: finalUl, type: 'upload' }
-              ]);
-
               setStage('completed');
               setIsRunning(false);
               setGaugeProgress(100);
+              setLiveDialValue(0);
 
-              // Callback
+              // Play awesome futuristic success tone
+              FutureSoundEngine.playSuccess();
+
+              // Trigger complete callback
               onTestComplete({
                 download: parseFloat(targetDownload.toFixed(1)),
                 upload: parseFloat(targetUpload.toFixed(1)),
@@ -163,189 +186,293 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
     }, 2500);
   };
 
+  // Determine active phase theme configurations
+  let themeColor = "text-[#00F0FF]";
+  let themeBg = "bg-[#00F0FF]";
+  let themeBorder = "border-[#00F0FF]";
+  let themeGlowClass = "glow-cyan";
+  let maxDialVal = 500; // max value representation for visual gauge scaling
+
+  if (stage === 'ping') {
+    themeColor = "text-[#00FFA3]";
+    themeBg = "bg-[#00FFA3]";
+    themeBorder = "border-[#00FFA3]";
+    themeGlowClass = "glow-emerald";
+    maxDialVal = 300;
+  } else if (stage === 'download') {
+    themeColor = "text-[#00F0FF]";
+    themeBg = "bg-[#00F0FF]";
+    themeBorder = "border-[#00F0FF]";
+    themeGlowClass = "glow-cyan";
+    maxDialVal = 500;
+  } else if (stage === 'upload') {
+    themeColor = "text-[#7B61FF]";
+    themeBg = "bg-[#7B61FF]";
+    themeBorder = "border-[#7B61FF]";
+    themeGlowClass = "glow-purple";
+    maxDialVal = 300;
+  } else if (stage === 'completed') {
+    themeColor = "text-[#00FFA3]";
+    themeBg = "bg-[#00FFA3]";
+    themeBorder = "border-[#00FFA3]";
+    themeGlowClass = "glow-emerald";
+  }
+
+  // Calculate stroke-dashoffset for circular gauge
+  // Circumference for r=115 is 2 * Math.PI * 115 = 722.5
+  const circumference = 722.5;
+  const clampedVal = Math.min(liveDialValue, maxDialVal);
+  const percentFilled = liveDialValue ? (clampedVal / maxDialVal) : 0;
+  const strokeDashoffset = circumference - (percentFilled * circumference);
+
+  const displaySpeedNumeric = () => {
+    if (stage === 'ping') return ping || liveDialValue.toFixed(0);
+    if (stage === 'download') return download.toFixed(1);
+    if (stage === 'upload') return upload.toFixed(1);
+    if (stage === 'completed') return download.toFixed(1);
+    return "0.0";
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8" id="speed-test-view-container">
+    <div className="max-w-4xl mx-auto px-4 py-6 text-right sm:text-left rtl:sm:text-right" id="speed-test-view-container">
       
-      {/* Title & Header */}
+      {/* Dynamic Cinematic Header */}
       <div className="text-center mb-10">
-        <div className="inline-flex p-3 bg-blue-950/50 border border-blue-900 rounded-2xl mb-4 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-          <Gauge className="w-8 h-8 text-blue-400" />
+        <div className={`inline-flex p-3.5 bg-[#0b1020]/80 border ${themeBorder} rounded-2xl mb-4 transition-all duration-300 ${themeGlowClass}`}>
+          <Gauge className={`w-8 h-8 ${themeColor} animate-pulse`} />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-white" id="speedtest-page-header">
+        <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight" id="speedtest-page-header">
           {t.speedTestTitle}
         </h1>
-        <p className="text-slate-400 mt-2 text-sm sm:text-base">
+        <p className="text-slate-400 mt-2.5 text-sm sm:text-base max-w-xl mx-auto">
           {t.speedTestSubtitle}
         </p>
       </div>
 
-      {/* Profile Selector (Interactive simulation scenarios) */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 mb-8" id="profile-selector-panel">
-        <label className="block text-xs font-mono text-slate-400 uppercase tracking-wider mb-3 text-center sm:text-left rtl:sm:text-right">
-          {t.profileSelectLabel}
+      {/* Profile Selector (Interactive simulation scenarios with premium buttons) */}
+      <div className="bg-[#0b1020]/50 border border-slate-900 rounded-3xl p-6 mb-8 relative overflow-hidden" id="profile-selector-panel">
+        <label className="block text-xs font-mono text-[#00F0FF] uppercase tracking-widest mb-4 text-center sm:text-left rtl:sm:text-right font-black">
+          📡 // {t.profileSelectLabel}
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             onClick={() => !isRunning && setProfile('random')}
             disabled={isRunning}
             id="profile-btn-random"
-            className={`px-4 py-3 rounded-lg text-xs font-bold border transition-all ${
+            className={`px-5 py-4 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-300 cursor-pointer flex items-center justify-between ${
               profile === 'random'
-                ? "bg-blue-950/60 text-blue-400 border-blue-900 shadow-lg shadow-blue-950/40"
-                : "bg-slate-950/40 text-slate-400 border-slate-800 hover:border-slate-700"
+                ? "bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/55 shadow-lg shadow-[#00F0FF]/10 scale-[1.02]"
+                : "bg-[#030712]/40 text-slate-400 border-slate-900/80 hover:border-slate-850 hover:text-slate-300"
             }`}
           >
-            🕹️ {t.profileRandom}
+            <span>🕹️ {t.profileRandom}</span>
+            {profile === 'random' && <Zap className="w-3.5 h-3.5 animate-bounce text-[#00FFA3]" />}
           </button>
+
           <button
             onClick={() => !isRunning && setProfile('stable')}
             disabled={isRunning}
             id="profile-btn-stable"
-            className={`px-4 py-3 rounded-lg text-xs font-bold border transition-all ${
+            className={`px-5 py-4 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-300 cursor-pointer flex items-center justify-between ${
               profile === 'stable'
-                ? "bg-blue-950/60 text-blue-400 border-blue-900 shadow-lg shadow-blue-950/40"
-                : "bg-slate-950/40 text-slate-400 border-slate-800 hover:border-slate-700"
+                ? "bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/55 shadow-lg shadow-[#00F0FF]/10 scale-[1.02]"
+                : "bg-[#030712]/40 text-slate-400 border-slate-900/80 hover:border-slate-850 hover:text-slate-300"
             }`}
           >
-            ⚡ {t.profileNormal}
+            <span>⚡ {t.profileNormal}</span>
+            {profile === 'stable' && <Zap className="w-3.5 h-3.5 animate-bounce text-[#00FFA3]" />}
           </button>
+
           <button
             onClick={() => !isRunning && setProfile('slow')}
             disabled={isRunning}
             id="profile-btn-slow"
-            className={`px-4 py-3 rounded-lg text-xs font-bold border transition-all ${
+            className={`px-5 py-4 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-300 cursor-pointer flex items-center justify-between ${
               profile === 'slow'
-                ? "bg-blue-950/60 text-blue-400 border-blue-900 shadow-lg shadow-blue-950/40"
-                : "bg-slate-950/40 text-slate-400 border-slate-800 hover:border-slate-700"
+                ? "bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/55 shadow-lg shadow-[#00F0FF]/10 scale-[1.02]"
+                : "bg-[#030712]/40 text-slate-400 border-slate-900/80 hover:border-slate-850 hover:text-slate-300"
             }`}
           >
-            🐌 {t.profileSlow}
+            <span>🐌 {t.profileSlow}</span>
+            {profile === 'slow' && <Zap className="w-3.5 h-3.5 animate-bounce text-[#00FFA3]" />}
           </button>
+
           <button
             onClick={() => !isRunning && setProfile('gaming')}
             disabled={isRunning}
             id="profile-btn-gaming"
-            className={`px-4 py-3 rounded-lg text-xs font-bold border transition-all ${
+            className={`px-5 py-4 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-300 cursor-pointer flex items-center justify-between ${
               profile === 'gaming'
-                ? "bg-blue-950/60 text-blue-400 border-blue-900 shadow-lg shadow-blue-950/40"
-                : "bg-slate-950/40 text-slate-400 border-slate-800 hover:border-slate-700"
+                ? "bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/55 shadow-lg shadow-[#00F0FF]/10 scale-[1.02]"
+                : "bg-[#030712]/40 text-slate-400 border-slate-900/80 hover:border-slate-850 hover:text-slate-300"
             }`}
           >
-            🎮 {t.profileGamingBad}
+            <span>🎮 {t.profileGamingBad}</span>
+            {profile === 'gaming' && <Zap className="w-3.5 h-3.5 animate-bounce text-[#00FFA3]" />}
           </button>
         </div>
       </div>
 
       {/* Main Speed Gauge Simulator Frame */}
       <div 
-        className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-8 sm:p-12 mb-8 shadow-2xl relative overflow-hidden flex flex-col items-center"
+        className="bg-[#0b1020]/40 border border-slate-800/80 rounded-3xl p-8 sm:p-14 mb-8 shadow-2xl relative overflow-hidden flex flex-col items-center"
         id="gauge-canvas-wrapper"
       >
-        <div className="absolute top-0 left-0 w-full h-1 bg-slate-800">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-slate-900">
           <div 
-            className="h-full bg-gradient-to-r from-blue-500 via-indigo-600 to-cyan-400 transition-all duration-300"
+            className="h-full bg-gradient-to-r from-[#00F0FF] via-[#7B61FF] to-[#00FFA3] transition-all duration-300 shadow-[0_0_12px_#00F0FF]"
             style={{ width: `${gaugeProgress}%` }}
           ></div>
         </div>
 
-        {/* Big Interactive Ring Dial */}
-        <div className="relative w-64 h-64 flex items-center justify-center mb-8" id="radial-dial-container">
+        {/* Big Interactive Circular Speed Meter Gauge */}
+        <div className="relative w-72 h-72 flex items-center justify-center mb-8" id="radial-dial-container">
           
-          {/* Circular Track Background */}
-          <div className="absolute inset-0 rounded-full border-[10px] border-slate-800/60"></div>
-          
-          {/* Digital Status/Speed readout */}
-          <div className="text-center z-10">
-            <span className="text-[11px] font-mono tracking-widest text-blue-400 uppercase font-bold block mb-1">
+          {/* Neon track circle (SVG) */}
+          <svg className="absolute w-full h-full rotate-[-90deg]">
+            {/* Background track circle */}
+            <circle 
+              cx="144" 
+              cy="144" 
+              r="115" 
+              className="stroke-slate-900 fill-none" 
+              strokeWidth="10" 
+            />
+            {/* Glowing active dial arc */}
+            <circle 
+              cx="144" 
+              cy="144" 
+              r="115" 
+              className={`stroke-current ${themeColor} fill-none transition-all duration-150 ease-out`} 
+              strokeWidth="9" 
+              strokeDasharray={722.5}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </svg>
+
+          {/* Glowing particle rings inside the circular gauge */}
+          <div className="absolute inset-4 rounded-full border border-slate-800/30 bg-[#030712]/50 backdrop-blur-md flex flex-col justify-center items-center z-10 p-4">
+            <span className="text-[10px] font-mono tracking-widest text-slate-500 uppercase font-black block mb-2 text-center">
               {stage === 'ping' && t.testingPing}
               {stage === 'download' && t.testingDownload}
               {stage === 'upload' && t.testingUpload}
               {stage === 'completed' && t.testCompleted}
-              {stage === 'idle' && (isAr ? "جاهز مسبقاً" : "Ready to Analyze")}
+              {stage === 'idle' && (isAr ? "جاهز مسبقاً" : "Core System Standby")}
             </span>
             
-            <div className="my-1">
-              <span className="text-5xl font-mono font-black text-white tracking-tight leading-none face-numeric">
-                {stage === 'download' || stage === 'idle' ? download : stage === 'upload' ? upload : (ping || '0')}
+            <div className="my-1.5 flex flex-col items-center">
+              <AnimatePresence mode="popLayout">
+                <motion.span 
+                  key={displaySpeedNumeric()}
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  transition={{ duration: 0.1 }}
+                  className="text-5xl sm:text-6.5xl font-mono font-black text-white tracking-tight leading-none text-center"
+                >
+                  {displaySpeedNumeric()}
+                </motion.span>
+              </AnimatePresence>
+
+              <span className={`text-[11px] font-black uppercase font-mono mt-2 tracking-widest ${themeColor}`}>
+                {stage === 'download' || stage === 'upload' || stage === 'completed' || stage === 'idle' ? 'Mbps stream' : 'ms lat'}
               </span>
             </div>
 
-            <span className="text-xs text-slate-400 font-bold uppercase font-mono">
-              {stage === 'download' || stage === 'upload' || stage === 'idle' ? 'Mbps' : 'ms'}
-            </span>
+            {/* Glowing micro stats */}
+            {stage !== 'idle' && (
+              <div className="absolute bottom-5 text-[9px] font-mono text-[#00FFA3] flex items-center gap-1.5 bg-[#00FFA3]/5 border border-[#00FFA3]/30 px-2 py-0.5 rounded-full animate-pulse">
+                <Activity className="w-3 h-3 text-[#00FFA3]" />
+                {isAr ? "دفق نشط" : "LIVE_DUPLEX"}
+              </div>
+            )}
           </div>
 
-          {/* Pulse effect in the back */}
+          {/* Pulse ping animation behind gauge */}
           {isRunning && (
-            <div className="absolute inset-6 rounded-full border border-blue-500/10 animate-ping"></div>
+            <div className={`absolute inset-0 rounded-full border-2 ${themeBorder} opacity-15 animate-ping`} style={{ animationDuration: '2.5s' }}></div>
           )}
         </div>
 
-        {/* Live Metrics Grid Output */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full" id="live-results-grid">
+        {/* Live Metrics Grid Output (Staggered cards with transparency and glowing borders) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full" id="live-results-grid">
           
-          {/* Download */}
-          <div className={`bg-slate-950/80 border rounded-xl p-4 text-center transition-all ${stage === 'download' ? 'border-blue-500 shadow-lg shadow-blue-950/60' : 'border-slate-800'}`}>
-            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1">{t.downloadLabel}</span>
-            <div className="flex items-baseline justify-center space-x-1 rtl:space-x-reverse">
-              <span className="text-2xl font-mono font-black text-white">{download}</span>
+          {/* Download Speed */}
+          <div className={`bg-[#030712]/50 border rounded-2xl p-5 text-center transition-all duration-300 ${stage === 'download' ? 'border-[#00F0FF] shadow-lg shadow-[#00F0FF]/15 scale-102 bg-[#00F0FF]/5' : 'border-slate-900'}`}>
+            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-2 flex items-center justify-center gap-1.5 font-bold">
+              <ArrowDownCircle className="w-3.5 h-3.5 text-[#00F0FF]" />
+              {t.downloadLabel}
+            </span>
+            <div className="flex items-baseline justify-center space-x-1.5 rtl:space-x-reverse">
+              <span className="text-2xl sm:text-3xl font-mono font-black text-white tracking-tight">{download}</span>
               <span className="text-xs text-slate-400 font-mono">Mbps</span>
             </div>
-            {stage === 'download' && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mx-auto mt-2 animate-ping"></div>}
+            {stage === 'download' && <div className="w-1.5 h-1.5 bg-[#00F0FF] rounded-full mx-auto mt-2.5 animate-ping"></div>}
           </div>
 
-          {/* Upload */}
-          <div className={`bg-slate-950/80 border rounded-xl p-4 text-center transition-all ${stage === 'upload' ? 'border-indigo-500 shadow-lg shadow-indigo-950/60' : 'border-slate-800'}`}>
-            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1">{t.uploadLabel}</span>
-            <div className="flex items-baseline justify-center space-x-1 rtl:space-x-reverse">
-              <span className="text-2xl font-mono font-black text-white">{upload}</span>
+          {/* Upload Speed */}
+          <div className={`bg-[#030712]/50 border rounded-2xl p-5 text-center transition-all duration-300 ${stage === 'upload' ? 'border-[#7B61FF] shadow-lg shadow-[#7B61FF]/15 scale-102 bg-[#7B61FF]/5' : 'border-slate-900'}`}>
+            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-2 flex items-center justify-center gap-1.5 font-bold">
+              <ArrowUpCircle className="w-3.5 h-3.5 text-[#7B61FF]" />
+              {t.uploadLabel}
+            </span>
+            <div className="flex items-baseline justify-center space-x-1.5 rtl:space-x-reverse">
+              <span className="text-2xl sm:text-3xl font-mono font-black text-white tracking-tight">{upload}</span>
               <span className="text-xs text-slate-400 font-mono">Mbps</span>
             </div>
-            {stage === 'upload' && <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full mx-auto mt-2 animate-ping"></div>}
+            {stage === 'upload' && <div className="w-1.5 h-1.5 bg-[#7B61FF] rounded-full mx-auto mt-2.5 animate-ping"></div>}
           </div>
 
-          {/* Ping */}
-          <div className={`bg-slate-950/80 border rounded-xl p-4 text-center transition-all ${stage === 'ping' ? 'border-emerald-500 shadow-lg shadow-emerald-950/60' : 'border-slate-800'}`}>
-            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1">{t.pingLabel}</span>
-            <div className="flex items-baseline justify-center space-x-1 rtl:space-x-reverse">
-              <span className="text-2xl font-mono font-black text-white">{ping}</span>
+          {/* Ping Latency */}
+          <div className={`bg-[#030712]/50 border rounded-2xl p-5 text-center transition-all duration-300 ${stage === 'ping' ? 'border-[#00FFA3] shadow-lg shadow-[#00FFA3]/15 scale-102 bg-[#00FFA3]/5' : 'border-slate-900'}`}>
+            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-2 flex items-center justify-center gap-1.5 font-bold">
+              <Timer className="w-3.5 h-3.5 text-[#00FFA3]" />
+              {t.pingLabel}
+            </span>
+            <div className="flex items-baseline justify-center space-x-1.5 rtl:space-x-reverse">
+              <span className="text-2xl sm:text-3xl font-mono font-black text-white tracking-tight">{ping}</span>
               <span className="text-xs text-slate-400 font-mono">ms</span>
             </div>
-            {stage === 'ping' && <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mx-auto mt-2 animate-ping"></div>}
+            {stage === 'ping' && <div className="w-1.5 h-1.5 bg-[#00FFA3] rounded-full mx-auto mt-2.5 animate-ping"></div>}
           </div>
 
           {/* Jitter */}
-          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-center">
-            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-1">{t.jitterLabel}</span>
-            <div className="flex items-baseline justify-center space-x-1 rtl:space-x-reverse">
-              <span className="text-2xl font-mono font-black text-white">{jitter}</span>
+          <div className="bg-[#030712]/50 border border-slate-900 rounded-2xl p-5 text-center">
+            <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono mb-2 flex items-center justify-center gap-1.5 font-bold">
+              <Radio className="w-3.5 h-3.5 text-indigo-400" />
+              {t.jitterLabel}
+            </span>
+            <div className="flex items-baseline justify-center space-x-1.5 rtl:space-x-reverse">
+              <span className="text-2xl sm:text-3xl font-mono font-black text-white tracking-tight">{jitter}</span>
               <span className="text-xs text-slate-400 font-mono">ms</span>
             </div>
           </div>
 
         </div>
 
-        {/* Real-time D3.js line chart for throughput fluctuations */}
-        <div className="w-full mt-8 border-t border-slate-800/60 pt-6" id="speed-test-d3-chart-wrapper">
+        {/* Real-time elegant line chart of packet telemetry */}
+        <div className="w-full mt-10 border-t border-slate-900/80 pt-8" id="speed-test-d3-chart-wrapper">
           <SpeedChart data={chartData} activeStage={stage} language={language} />
         </div>
 
-        {/* Large Play Action Button */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full" id="speed-test-action-buttons">
+        {/* Primary Speeder Action Trigger Buttons */}
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5 w-full" id="speed-test-action-buttons">
           {stage === 'idle' || stage === 'completed' ? (
             <button
               onClick={startTest}
               disabled={isRunning}
               id="start-speedtest-btn"
-              className="px-8 py-4 w-full sm:w-auto rounded-xl text-base font-black bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-900/40 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center space-x-2 rtl:space-x-reverse"
+              className="px-10 py-5 w-full sm:w-auto rounded-xl text-base font-black bg-gradient-to-r from-[#00F0FF] via-[#7B61FF] to-[#00FFA3] text-black hover:brightness-110 shadow-xl shadow-[#00F0FF]/15 hover:scale-[1.04] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center space-x-3 rtl:space-x-reverse"
             >
-              {stage === 'completed' ? <RotateCcw className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
+              {stage === 'completed' ? <RotateCcw className="w-5 h-5 text-black" /> : <Play className="w-4.5 h-4.5 fill-current text-black" />}
               <span>{stage === 'completed' ? (isAr ? "إعادة الفحص" : "Re-Run Speed Test") : t.startTest}</span>
             </button>
           ) : (
-            <div className="text-slate-400 text-sm font-mono flex items-center space-x-2 animate-pulse">
-              <Activity className="w-4 h-4 text-blue-400 animate-spin" />
-              <span>{isAr ? "يجري الاحتساب وتدفق الحزم الرياضية الموثوقة..." : "Running calculations on packets stream..."}</span>
+            <div className="bg-[#030712]/40 border border-[#00F0FF]/30 rounded-2xl px-6 py-4.5 text-slate-400 text-xs font-mono flex items-center space-x-3 animate-pulse w-full max-w-md justify-center">
+              <Activity className="w-4 h-4 text-[#00F0FF] animate-spin" />
+              <span>{isAr ? "يجري رصد الاتصال وتفريغ الحزم بالمللي ثانية..." : "Processing packet telemetry stream..."}</span>
             </div>
           )}
 
@@ -353,27 +480,27 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
             <button
               onClick={() => setCurrentPage('analysis')}
               id="goto-analysis-page-btn"
-              className="px-8 py-4 w-full sm:w-auto rounded-xl text-base font-black bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/40 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center space-x-2 rtl:space-x-reverse"
+              className="px-10 py-5 w-full sm:w-auto rounded-xl text-base font-black bg-gradient-to-r from-[#00FFA3] to-emerald-600 text-black hover:brightness-110 shadow-lg shadow-[#00FFA3]/15 hover:scale-[1.04] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center space-x-2.5 rtl:space-x-reverse"
             >
               <span>{t.ctaAnalyzeNow}</span>
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 text-black" />
             </button>
           )}
         </div>
 
       </div>
 
-      {/* Mini Technical Guide */}
-      <div className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 text-slate-400 text-xs leading-relaxed flex items-start space-x-3 rtl:space-x-reverse">
-        <AlertTriangle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+      {/* Cyber Guideline Box */}
+      <div className="bg-[#0b1020]/45 border border-slate-900 rounded-2xl p-6 text-slate-400 text-xs leading-relaxed flex items-start space-x-3.5 rtl:space-x-reverse backdrop-blur-md">
+        <AlertTriangle className="w-5 h-5 text-[#00F0FF] shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-300 block mb-1">
-            {isAr ? "إرشادات الحصول على أقصى دقة فنية للفحص:" : "Guide for achieving accurate technical measurements:"}
+            {isAr ? "إرشادات استهلاك الموارد للحصول على أدق قراءات رقمية للشبكة:" : "Optimal guidelines for securing pristine measurement accuracy:"}
           </span>
           {isAr ? (
-            "يرجى التأكد من إيقاف أي عمليات تنزيل أو رفع مستمرة بالخلفية، وإغلاق علامات التبويب التي تبث محتوى الفيديو عالي الدقة، والجلوس بالقرب من الراوتر للحصول على المؤشرات الدقيقة للاتصال المحلي بدون ضوضاء تدرجية."
+            "يرجى التأكد من إيقاف أي عمليات تنزيل أو تحميل نشطة بالخلفية، وإغلاق أي تطبيقات تستهلك عروض حِزم الشبكة للحفاظ على استقرار تدفق التلمس السحابي عبر الراوتر."
           ) : (
-            "Please ensure you pause any active downloads, close backgrounds video streaming tabs, and position device near the core router access point to secure direct telemetry without local channel noise interference."
+            "Please ensure you suspend background download routines, verify local router channels are clear from concurrent hardware streaming, and reside close to connection hubs to extract pure telemetry."
           )}
         </div>
       </div>
