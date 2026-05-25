@@ -452,10 +452,7 @@ export default function SpeedTest({ language, onTestComplete, setCurrentPage }: 
 
         </div>
 
-        {/* Real-time elegant line chart of packet telemetry */}
-        <div className="w-full mt-10 border-t border-slate-900/80 pt-8" id="speed-test-d3-chart-wrapper">
-          <SpeedChart data={chartData} activeStage={stage} language={language} />
-        </div>
+
 
         {/* Primary Speeder Action Trigger Buttons */}
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5 w-full" id="speed-test-action-buttons">

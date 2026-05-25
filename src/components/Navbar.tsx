@@ -204,7 +204,7 @@ export default function Navbar({
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
-        <div className="no-scrollbar overflow-x-auto flex items-center space-x-2.5 rtl:space-x-reverse px-4">
+        <div className="no-scrollbar overflow-x-auto flex items-center justify-center space-x-2.5 rtl:space-x-reverse px-4">
           {navItems.map((item) => {
             const isActive = currentPage === item.id;
             return (
