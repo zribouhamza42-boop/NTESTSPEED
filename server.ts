@@ -174,6 +174,7 @@ async function startServer() {
 
   // Enable JSON request body parsing
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // Global Request Logging Middleware
   app.use((req, res, next) => {
