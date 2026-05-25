@@ -38,15 +38,19 @@ export default function Login({ language, onLoginSuccess, setCurrentPage }: Logi
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+
+      console.log("LOGIN RESPONSE:", text);
+
+      const data = text ? JSON.parse(text) : {};
 
       if (!response.ok) {
-        throw new Error(data.error || (isAr ? "فشل تسجيل الدخول. يرجى التحقق من المدخلات." : "Login failed. Incorrect credentials."));
+        throw new Error(data.error || "Login failed");
       }
 
       // Success callback
